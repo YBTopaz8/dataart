@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Director Collaboration Network Graph</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+<body>
+    <script>
+        let nodes = {};
+        let edges = [];
+
+        function preload() {
+            
+            graph = loadJSON('movie_director_node.json');
+        }
+
+        function setup() {
+            createCanvas(1000, 800);
+            // Process the loaded graph data
+            graph.nodes.forEach(n => {
+                nodes[n.id] = new Node(n.id);
+            });
+            graph.links.forEach(l => {
+                // Assuming the source and target in your links are the ids of the nodes
+                edges.push(new Edge(nodes[l.source], nodes[l.target], l.value));
+            });
+        }
+
+        function draw() {
+            background(255);
+            // Apply forces and update positions
+            applyForces();
+            // Display edges
+            edges.forEach(edge => {
+                edge.display();
+            });
+            // Display nodes
+            Object.values(nodes).forEach(node => {
+                node.update();
+                node.display();
+            });
+        }
+
+        // Node class
+        class Node {
+            constructor(id) {
+                this.id = id;
+                this.pos = createVector(random(width), random(height));
+                this.vel = createVector(0, 0);
+                this.acc = createVector(0, 0);
+            }
+
+            applyForce(force) {
+                this.acc.add(force);
+            }
+
+            update() {
+                this.vel.add(this.acc);
+                this.pos.add(this.vel);
+                // Optionally add some friction or damping to stabilize
+                this.vel.mult(0.9);
+                this.acc.mult(0);
+            }
+
+            display() {
+                fill(0);
+                ellipse(this.pos.x, this.pos.y, 20, 20);
+                fill(255, 0, 0);
+                textSize(10);
+                textAlign(CENTER, CENTER);
+                text(this.id, this.pos.x, this.pos.y);
+            }
+        }
+
+        // Edge class
+        class Edge {
+            constructor(source, target, value) {
+                this.source = source;
+                this.target = target;
+                this.value = value;
+            }
+
+            display() {
+                stroke(0);
+                strokeWeight(this.value / 10); // Adjust stroke weight based on collaboration strength
+                line(this.source.pos.x, this.source.pos.y, this.target.pos.x, this.target.pos.y);
+            }
+        }
+
+        // Function to apply forces (repulsive between nodes, attractive along edges)
+        function applyForces() {
+            let repulseForce = 5;
+            let attractForce = 0.01;
+
+            // Repulsion between nodes
+            Object.values(nodes).forEach(node => {
+                node.acc.set(0, 0); // Reset acceleration
+                Object.values(nodes).forEach(other => {
+                    if (node !== other) {
+                        let force = p5.Vector.sub(node.pos, other.pos);
+                        let distance = force.mag();
+                        if (distance > 1) {
+                            force.setMag(repulseForce / (distance * distance));
+                            node.applyForce(force);
+                        }
+                    }
+                });
+            });
+
+            // Attraction along edges
+            edges.forEach(edge => {
+                let force = p5.Vector.sub(edge.target.pos, edge.source.pos);
+                let distance = force.mag() - 100; // Ideal edge length
+                force.setMag(distance * attractForce);
+                edge.target.applyForce(force);
+                force.mult(-1);
+                edge.source.applyForce(force);
+            });
+        }
+    </script>
+</body>
+</html>
